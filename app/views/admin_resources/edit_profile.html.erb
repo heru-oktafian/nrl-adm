@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Edit Profile - nrl-adm</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f7fafc; }
+    .navbar { background: #1e3a5f; color: white; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+    .navbar h1 { font-size: 1.25rem; }
+    .navbar a { color: white; text-decoration: none; font-size: 0.875rem; }
+    .navbar a:hover { text-decoration: underline; }
+    .breadcrumb { background: #edf2f7; padding: 0.75rem 1.5rem; font-size: 0.875rem; }
+    .breadcrumb a { color: #4299e1; text-decoration: none; }
+    .container { max-width: 800px; margin: 2rem auto; padding: 0 1.5rem; }
+    h2 { color: #1e3a5f; margin-bottom: 1.5rem; }
+    .form-card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .form-group { margin-bottom: 1.5rem; }
+    label { display: block; font-size: 0.875rem; font-weight: 500; color: #4a5568; margin-bottom: 0.5rem; }
+    input[type="text"], input[type="email"], input[type="url"], input[type="number"], textarea, select {
+      width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 1rem; font-family: inherit;
+    }
+    textarea { min-height: 120px; resize: vertical; }
+    .btn { padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-size: 0.875rem; font-weight: 500; cursor: pointer; border: none; }
+    .btn-primary { background: #1e3a5f; color: white; }
+    .btn-primary:hover { background: #2c5282; }
+    .btn-secondary { background: #e2e8f0; color: #4a5568; }
+    .btn-secondary:hover { background: #cbd5e0; }
+    .actions { display: flex; gap: 1rem; margin-top: 2rem; }
+    .alert { background: #fed7d7; color: #c53030; padding: 1rem; border-radius: 6px; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <h1>nrl-adm</h1>
+    <div style="display: flex; align-items: center; gap: 1.5rem;">
+      <a href="/dashboard">Dashboard</a>
+      <a href="/logout" data-turbo-method="delete">Logout</a>
+    </div>
+  </nav>
+  
+  <div class="breadcrumb">
+    <a href="/dashboard">Dashboard</a> /
+    <a href="/admin/profile">Profile</a> /
+    Edit
+  </div>
+  
+  <div class="container">
+    <% if flash[:alert] %>
+      <div class="alert"><%= flash[:alert] %></div>
+    <% end %>
+    
+    <h2>Edit Profile</h2>
+    
+    <div class="form-card">
+      <form action="/admin/profile" method="POST">
+        <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+        <input type="hidden" name="_method" value="PUT">
+        
+        <div class="form-group">
+          <label for="name">Name</label>
+          <input type="text" id="name" name="profile[name]" value="<%= @item["name"] || "" %>" required>
+        </div>
+        <div class="form-group">
+          <label for="title">Title</label>
+          <input type="text" id="title" name="profile[title]" value="<%= @item["title"] || "" %>">
+        </div>
+        <div class="form-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" name="profile[email]" value="<%= @item["email"] || "" %>">
+        </div>
+        <div class="form-group">
+          <label for="phone">Phone</label>
+          <input type="text" id="phone" name="profile[phone]" value="<%= @item["phone"] || "" %>">
+        </div>
+        <div class="form-group">
+          <label for="location">Location</label>
+          <input type="text" id="location" name="profile[location]" value="<%= @item["location"] || "" %>">
+        </div>
+        <div class="form-group">
+          <label for="image_url">Image URL</label>
+          <input type="url" id="image_url" name="profile[image_url]" value="<%= @item["image_url"] || "" %>">
+        </div>
+        <div class="form-group">
+          <label for="bio">Bio</label>
+          <textarea id="bio" name="profile[bio]"><%= @item["bio"] || "" %></textarea>
+        </div>
+        <div class="form-group">
+          <label for="about">About</label>
+          <textarea id="about" name="profile[about]"><%= @item["about"] || "" %></textarea>
+        </div>
+        
+        <div class="actions">
+          <button type="submit" class="btn btn-primary">Update</button>
+          <a href="/admin/profile" class="btn btn-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>New <%= @resource_name.singularize.titleize %> - nrl-adm</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f7fafc; }
+    .navbar { background: #1e3a5f; color: white; padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; }
+    .navbar h1 { font-size: 1.25rem; }
+    .navbar a { color: white; text-decoration: none; font-size: 0.875rem; }
+    .navbar a:hover { text-decoration: underline; }
+    .breadcrumb { background: #edf2f7; padding: 0.75rem 1.5rem; font-size: 0.875rem; }
+    .breadcrumb a { color: #4299e1; text-decoration: none; }
+    .container { max-width: 800px; margin: 2rem auto; padding: 0 1.5rem; }
+    h2 { color: #1e3a5f; margin-bottom: 1.5rem; }
+    .form-card { background: white; padding: 2rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .form-group { margin-bottom: 1.5rem; }
+    label { display: block; font-size: 0.875rem; font-weight: 500; color: #4a5568; margin-bottom: 0.5rem; }
+    input[type="text"], input[type="email"], input[type="url"], input[type="number"], textarea, select {
+      width: 100%; padding: 0.75rem; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 1rem; font-family: inherit;
+    }
+    textarea { min-height: 120px; resize: vertical; }
+    .btn { padding: 0.75rem 1.5rem; border-radius: 6px; text-decoration: none; font-size: 0.875rem; font-weight: 500; cursor: pointer; border: none; }
+    .btn-primary { background: #1e3a5f; color: white; }
+    .btn-primary:hover { background: #2c5282; }
+    .btn-secondary { background: #e2e8f0; color: #4a5568; }
+    .btn-secondary:hover { background: #cbd5e0; }
+    .actions { display: flex; gap: 1rem; margin-top: 2rem; }
+    .alert { background: #fed7d7; color: #c53030; padding: 1rem; border-radius: 6px; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <h1>nrl-adm</h1>
+    <div style="display: flex; align-items: center; gap: 1.5rem;">
+      <a href="/dashboard">Dashboard</a>
+      <a href="/logout" data-turbo-method="delete">Logout</a>
+    </div>
+  </nav>
+  
+  <div class="breadcrumb">
+    <a href="/dashboard">Dashboard</a> /
+    <a href="/admin/<%= @resource_name %>"><%= @resource_name.titleize %></a> /
+    New <%= @resource_name.singularize.titleize %>
+  </div>
+  
+  <div class="container">
+    <% if flash[:alert] %>
+      <div class="alert"><%= flash[:alert] %></div>
+    <% end %>
+    
+    <h2>New <%= @resource_name.singularize.titleize %></h2>
+    
+    <div class="form-card">
+      <form action="/admin/<%= @resource_name %>" method="POST">
+        <input type="hidden" name="authenticity_token" value="<%= form_authenticity_token %>">
+        
+        <%# Generic form fields - adjust based on resource type %>
+        <% case @resource_name %>
+        <% when "projects" %>
+          <div class="form-group">
+            <label for="title">Title</label>
+            <input type="text" id="title" name="project[title]" required>
+          </div>
+          <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" name="project[description]" required></textarea>
+          </div>
+          <div class="form-group">
+            <label for="tech_stack">Tech Stack</label>
+            <input type="text" id="tech_stack" name="project[tech_stack]" placeholder="e.g. Figma, React, Node.js">
+          </div>
+          <div class="form-group">
+            <label for="image_url">Image URL</label>
+            <input type="url" id="image_url" name="project[image_url]" placeholder="https://...">
+          </div>
+          <div class="form-group">
+            <label for="url">Project URL</label>
+            <input type="url" id="url" name="project[url]" placeholder="https://...">
+          </div>
+          
+        <% when "skills" %>
+          <div class="form-group">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="skill[name]" required>
+          </div>
+          <div class="form-group">
+            <label for="category">Category</label>
+            <select id="category" name="skill[category]">
+              <option value="design">Design</option>
+              <option value="development">Development</option>
+              <option value="tools">Tools</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="level">Level</label>
+            <select id="level" name="skill[level]">
+              <option value="beginner">Beginner</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="advanced">Advanced</option>
+              <option value="expert">Expert</option>
+            </select>
+          </div>
+          
+        <% when "experiences" %>
+          <div class="form-group">
+            <label for="company">Company</label>
+            <input type="text" id="company" name="experience[company]" required>
+          </div>
+          <div class="form-group">
+            <label for="position">Position</label>
+            <input type="text" id="position" name="experience[position]" required>
+          </div>
+          <div class="form-group">
+            <label for="start_date">Start Date</label>
+            <input type="text" id="start_date" name="experience[start_date]" placeholder="e.g. Jan 2020">
+          </div>
+          <div class="form-group">
+            <label for="end_date">End Date</label>
+            <input type="text" id="end_date" name="experience[end_date]" placeholder="e.g. Present or Dec 2023">
+          </div>
+          <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" name="experience[description]"></textarea>
+          </div>
+          
+        <% when "social-links" %>
+          <div class="form-group">
+            <label for="platform">Platform</label>
+            <input type="text" id="platform" name="social_link[platform]" required placeholder="e.g. GitHub, LinkedIn">
+          </div>
+          <div class="form-group">
+            <label for="url">URL</label>
+            <input type="url" id="url" name="social_link[url]" required placeholder="https://...">
+          </div>
+          <div class="form-group">
+            <label for="icon">Icon</label>
+            <input type="text" id="icon" name="social_link[icon]" placeholder="e.g. github, linkedin">
+          </div>
+          
+        <% when "tools" %>
+          <div class="form-group">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="tool[name]" required>
+          </div>
+          <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" name="tool[description]"></textarea>
+          </div>
+          
+        <% when "services" %>
+          <div class="form-group">
+            <label for="name">Name</label>
+            <input type="text" id="name" name="service[name]" required>
+          </div>
+          <div class="form-group">
+            <label for="description">Description</label>
+            <textarea id="description" name="service[description]"></textarea>
+          </div>
+          
+        <% else %>
+          <div class="form-group">
+            <p>Generic form - specific fields not defined for this resource type.</p>
+          </div>
+        <% end %>
+        
+        <div class="actions">
+          <button type="submit" class="btn btn-primary">Create</button>
+          <a href="/admin/<%= @resource_name %>" class="btn btn-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</body>
+</html>
