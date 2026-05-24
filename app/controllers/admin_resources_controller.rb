@@ -1,89 +1,127 @@
-# frozen_string_literal: true
-
 class AdminResourcesController < ApplicationController
   before_action :require_valid_admin!
+  skip_before_action :verify_authenticity_token, only: [:create, :update, :destroy, :update_profile]
+
+  MENU_ITEMS = [
+    { key: "dashboard", label: "Dashboard", path_helper: :dashboard_path },
+    { key: "profile", label: "Profile", path: "/admin/profile" },
+    { key: "skills", label: "Skills", path: "/admin/skills" },
+    { key: "tools", label: "Tools", path: "/admin/tools" },
+    { key: "projects", label: "Projects", path: "/admin/projects" },
+    { key: "experiences", label: "Experiences", path: "/admin/experiences" },
+    { key: "social_links", label: "Social Links", path: "/admin/social-links" },
+    { key: "messages", label: "Messages", path: "/admin/contact-messages" }
+  ].freeze
+
+  helper_method :navigation_items, :active_nav_key
+
+  def navigation_items
+    MENU_ITEMS.map do |item|
+      item.merge(path: item[:path] || send(item[:path_helper]))
+    end
+  end
+
+  def active_nav_key
+    @resource_key
+  end
 
   RESOURCE_CONFIG = {
-    "profile" => {
-      title: "Profile",
-      endpoint: "/admin/profile",
-      summary: "Kelola identitas utama, headline, bio, dan kontak portfolio."
+    "skills" => {
+      title: "Skills",
+      endpoint: "/admin/skills",
+      summary: "Kelola skill dan kemampuan kamu di portfolio."
     },
     "projects" => {
       title: "Projects",
       endpoint: "/admin/projects",
-      summary: "Daftar project portfolio yang tampil di website publik."
-    },
-    "skills" => {
-      title: "Skills",
-      endpoint: "/admin/skills",
-      summary: "Teknologi dan kemampuan utama yang ingin ditampilkan."
+      summary: "Kelola project yang pernah kamu kerjakan."
     },
     "experiences" => {
       title: "Experiences",
       endpoint: "/admin/experiences",
-      summary: "Riwayat pengalaman kerja atau proyek profesional."
-    },
-    "tools" => {
-      title: "Tools",
-      endpoint: "/admin/tools",
-      summary: "Daftar tools dan technologies yang tampil di portfolio publik."
+      summary: "Kelola pengalaman kerja kamu."
     },
     "social-links" => {
       title: "Social Links",
       endpoint: "/admin/social-links",
-      summary: "Link sosial dan platform publik yang terhubung ke profil."
+      summary: "Kelola link social media kamu."
+    },
+    "tools" => {
+      title: "Tools",
+      endpoint: "/admin/tools",
+      summary: "Kelola tools yang kamu gunakan."
     },
     "contact-messages" => {
-      title: "Messages",
+      title: "Contact Messages",
       endpoint: "/admin/contact-messages",
-      summary: "Daftar pesan masuk dari form Hubungi Kami di website publik."
+      summary: "Lihat pesan yang masuk dari visitor."
+    },
+    "profile" => {
+      title: "Profile",
+      endpoint: "/admin/profile",
+      summary: "Kelola data profile portfolio kamu."
     }
   }.freeze
 
-  helper_method :navigation_items, :active_nav_key, :template_for_resource, :resource_data, :resource_config
-
   def index
-    # Handle /admin/profile separately since it's defined before :resource route
-    @resource_key = params[:resource]
-    @resource_key = 'profile' if request.path == '/admin/profile'
-    @resource = RESOURCE_CONFIG[@resource_key]
+    @resource_key = params[:resource] || "skills"
+    @resource = RESOURCE_CONFIG[@resource_key] || RESOURCE_CONFIG["skills"]
 
-    unless @resource
-      redirect_to dashboard_path, alert: "Menu tidak ditemukan."
-      return
-    end
-
-    @data = fetch_resource_data
-    @items = @data[:items]
-  end
-
-  def update_profile
-    @resource_key = "profile"
-    @resource = RESOURCE_CONFIG[@resource_key]
-    
-    response = HTTParty.put(
+    response = HTTParty.get(
       "#{ENV.fetch('NRL_BE_API_URL', 'http://localhost:3101/api/v1')}#{@resource[:endpoint]}",
-      headers: { "Content-Type" => "application/json", "Authorization" => "Bearer #{session[:admin_token]}" },
-      body: profile_params.to_json
+      headers: { "Authorization" => "Bearer #{session[:admin_token]}" }
     )
 
     if response.success?
-      redirect_to admin_resources_path("profile"), notice: "Profile updated successfully."
+      data = response.parsed_response["data"] || []
+      @items = data.is_a?(Array) ? data : []
+      @data = { status: :ok, message: "Success" }
     else
-      flash[:alert] = response.parsed_response["error"] || "Failed to update profile."
-      redirect_to admin_resources_path("profile")
+      @items = []
+      @data = { status: :error, message: response.parsed_response["error"] || "Failed to fetch data" }
     end
+  end
+
+  def datatable
+    index
+  end
+
+  def show
+    @resource_key = params[:resource]
+    @resource = RESOURCE_CONFIG[@resource_key]
+    @item_id = params[:id]
+
+    response = HTTParty.get(
+      "#{ENV.fetch('NRL_BE_API_URL', 'http://localhost:3101/api/v1')}#{@resource[:endpoint]}/#{@item_id}",
+      headers: { "Authorization" => "Bearer #{session[:admin_token]}" }
+    )
+
+    if response.success?
+      @item = response.parsed_response["data"]
+      @data = { status: :ok }
+    else
+      @data = { status: :error, message: "Item not found" }
+    end
+  end
+
+  def new
+    @resource_key = params[:resource]
+    @resource = RESOURCE_CONFIG[@resource_key]
   end
 
   def create
     @resource_key = params[:resource]
     @resource = RESOURCE_CONFIG[@resource_key]
 
+    body = build_create_body
+
     response = HTTParty.post(
       "#{ENV.fetch('NRL_BE_API_URL', 'http://localhost:3101/api/v1')}#{@resource[:endpoint]}",
-      headers: { "Content-Type" => "application/json", "Authorization" => "Bearer #{session[:admin_token]}" },
-      body: resource_params.to_json
+      headers: { 
+        "Content-Type" => "application/json",
+        "Authorization" => "Bearer #{session[:admin_token]}" 
+      },
+      body: body.to_json
     )
 
     if response.success?
@@ -94,14 +132,38 @@ class AdminResourcesController < ApplicationController
     end
   end
 
+  def edit
+    @resource_key = params[:resource]
+    @resource = RESOURCE_CONFIG[@resource_key]
+    @item_id = params[:id]
+
+    response = HTTParty.get(
+      "#{ENV.fetch('NRL_BE_API_URL', 'http://localhost:3101/api/v1')}#{@resource[:endpoint]}/#{@item_id}",
+      headers: { "Authorization" => "Bearer #{session[:admin_token]}" }
+    )
+
+    if response.success?
+      @item = response.parsed_response["data"]
+    else
+      flash[:alert] = "Item not found."
+      redirect_to "/admin/#{@resource_key}"
+    end
+  end
+
   def update
     @resource_key = params[:resource]
     @resource = RESOURCE_CONFIG[@resource_key]
+    @item_id = params[:id]
+
+    body = build_update_body
 
     response = HTTParty.put(
-      "#{ENV.fetch('NRL_BE_API_URL', 'http://localhost:3101/api/v1')}#{@resource[:endpoint]}/#{params[:id]}",
-      headers: { "Content-Type" => "application/json", "Authorization" => "Bearer #{session[:admin_token]}" },
-      body: resource_params.to_json
+      "#{ENV.fetch('NRL_BE_API_URL', 'http://localhost:3101/api/v1')}#{@resource[:endpoint]}/#{@item_id}",
+      headers: { 
+        "Content-Type" => "application/json",
+        "Authorization" => "Bearer #{session[:admin_token]}" 
+      },
+      body: body.to_json
     )
 
     if response.success?
@@ -115,9 +177,10 @@ class AdminResourcesController < ApplicationController
   def destroy
     @resource_key = params[:resource]
     @resource = RESOURCE_CONFIG[@resource_key]
+    @item_id = params[:id]
 
     response = HTTParty.delete(
-      "#{ENV.fetch('NRL_BE_API_URL', 'http://localhost:3101/api/v1')}#{@resource[:endpoint]}/#{params[:id]}",
+      "#{ENV.fetch('NRL_BE_API_URL', 'http://localhost:3101/api/v1')}#{@resource[:endpoint]}/#{@item_id}",
       headers: { "Authorization" => "Bearer #{session[:admin_token]}" }
     )
 
@@ -129,57 +192,83 @@ class AdminResourcesController < ApplicationController
     end
   end
 
-  private
+  def profile
+    @resource_key = "profile"
+    @resource = RESOURCE_CONFIG["profile"]
 
-  def navigation_items
-    DashboardController::MENU_ITEMS.map do |item|
-      item.merge(path: item[:path] || send(item[:path_helper]))
-    end
-  end
-
-  def active_nav_key
-    params[:resource] || "dashboard"
-  end
-
-  def resource_config
-    @resource
-  end
-
-  def resource_data
-    @data
-  end
-
-  def template_for_resource
-    return :profile if @resource_key == "profile"
-    return :datatable if %w[projects skills experiences tools social-links contact-messages].include?(@resource_key)
-    :datatable
-  end
-
-  def fetch_resource_data
     response = HTTParty.get(
-      "#{ENV.fetch('NRL_BE_API_URL', 'http://localhost:3101/api/v1')}#{@resource[:endpoint]}",
+      "#{ENV.fetch('NRL_BE_API_URL', 'http://localhost:3101/api/v1')}/admin/profile",
       headers: { "Authorization" => "Bearer #{session[:admin_token]}" }
     )
 
-    payload = response.parsed_response
-    data = payload["data"]
+    if response.success?
+      @profile = response.parsed_response["data"] || {}
+      @data = { status: :ok }
+    else
+      @profile = {}
+      @data = { status: :error, message: "Failed to fetch profile" }
+    end
+  end
+
+  def update_profile
+    body = {
+      full_name: params[:full_name],
+      title: params[:title],
+      bio: params[:bio],
+      email: params[:email],
+      phone: params[:phone],
+      location: params[:location]
+    }.compact
+
+    response = HTTParty.put(
+      "#{ENV.fetch('NRL_BE_API_URL', 'http://localhost:3101/api/v1')}/admin/profile",
+      headers: { 
+        "Content-Type" => "application/json",
+        "Authorization" => "Bearer #{session[:admin_token]}" 
+      },
+      body: body.to_json
+    )
 
     if response.success?
-      items = data.is_a?(Array) ? data : (data.present? ? [data] : [])
-      { status: :ok, items: items, raw: data, message: payload["message"].presence || "Data loaded." }
+      redirect_to admin_profile_path, notice: "Profile updated successfully."
     else
-      { status: :error, items: [], raw: payload, message: payload["error"].presence || "Gagal mengambil data." }
+      flash[:alert] = response.parsed_response["error"] || "Failed to update profile."
+      redirect_to admin_profile_path
     end
-  rescue StandardError => e
-    { status: :error, items: [], raw: nil, message: "Gagal terhubung ke backend: #{e.message}" }
   end
 
-  def resource_params
-    singular = @resource_key == "profile" ? "profile" : @resource_key.singularize
-    params.require(singular.to_sym).permit! if params[singular]
+  private
+
+  def build_create_body
+    case @resource_key
+    when "skills"
+      { name: params[:name], level: params[:level].to_i, category: params[:category], icon: params[:icon] }.compact
+    when "projects"
+      { 
+        title: params[:title], 
+        description: params[:description], 
+        tech_stack: params[:tech_stack], 
+        image_url: params[:image_url], 
+        url: params[:url] 
+      }.compact
+    when "experiences"
+      { 
+        company: params[:company], 
+        position: params[:position], 
+        start_date: params[:start_date], 
+        end_date: params[:end_date], 
+        description: params[:description] 
+      }.compact
+    when "social-links"
+      { platform: params[:platform], url: params[:url], icon: params[:icon] }.compact
+    when "tools"
+      { name: params[:name], icon: params[:icon], url: params[:url] }.compact
+    else
+      {}
+    end
   end
 
-  def profile_params
-    params.require(:profile).permit!
+  def build_update_body
+    build_create_body
   end
 end

@@ -9,10 +9,11 @@ Rails.application.routes.draw do
 
   # Admin resources
   scope "/admin" do
-    get "profile" => "admin_resources#index"
-    put "profile" => "admin_resources#update_profile"
+    get "profile" => "admin_resources#index", as: :admin_profile
+    put "profile" => "admin_resources#update_profile", as: :update_admin_profile
     
     get ":resource" => "admin_resources#index"
+    get ":resource/:id" => "admin_resources#show"
     post ":resource" => "admin_resources#create"
     put ":resource/:id" => "admin_resources#update"
     delete ":resource/:id" => "admin_resources#destroy"

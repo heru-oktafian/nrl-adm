@@ -1,0 +1,15 @@
+.env
+.env.example
+log/*.log
+tmp/**/*
+!tmp/.keep
+tmp/pids
+db/*.db
+tmp/restart.txt
+tmp/restart.txt
+
+# Assets builds
+public/assets/*
+!public/assets/.keep
+app/assets/builds/.manifest.json
+node_modules/
